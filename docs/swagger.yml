@@ -1,0 +1,669 @@
+openapi: 3.0.0
+info:
+  title: Smart Home Microservices API
+  description: API микросервисов системы управления умным домом, обеспечивающее взаимодействие между сервисами и работу с данными.
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8080/api
+    description: Локальный сервер разработки
+
+paths:
+  # Аутентификация и управление пользователями
+  /users/{userId}:
+    get:
+      summary: Получение информации о пользователе
+      parameters:
+        - name: userId
+          in: path
+          description: UUID пользователя
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Информация о пользователе
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '404':
+          description: Пользователь не найден
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /users/{userId}/houses:
+    get:
+      summary: Получение списка домов пользователя с уровнями доступа
+      parameters:
+        - name: userId
+          in: path
+          description: UUID пользователя
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список домов и уровней доступа
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserHouses'
+        '404':
+          description: Пользователь не найден
+        '500':
+          description: Внутренняя ошибка сервера
+
+  /users/{userId}/houses/{houseId}/access:
+    put:
+      tags:
+        - House
+      summary: Обновление уровня доступа пользователя к дому
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: houseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                access_level:
+                  type: string
+                  enum: [owner, member, guest]
+              required: [access_level]
+            example:
+              access_level: owner
+      responses:
+        '200':
+          description: Уровень доступа успешно обновлен
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: Access level updated successfully.
+        '400':
+          description: Некорректные данные запроса
+        '404':
+          description: Пользователь или дом не найдены
+        '500':
+          description: Ошибка сервера
+  # Работа с домами и доступом пользователей
+  # предполагается что пользователь может владеть насколькими домами и \
+  # домом могут управлять несколько пользователей
+  /houses/{houseId}:
+    get:
+      summary: Получение информации о доме
+      parameters:
+        - name: houseId
+          in: path
+          description: UUID дома
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Информация о доме
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/House'
+        '404':
+          description: Дом не найден
+        '500':
+          description: Ошибка сервера
+
+  # Device Control Service
+
+  /houses/{houseId}/devices:
+    get:
+      summary: Получение списка устройств, принадлежащих дому
+      parameters:
+        - name: houseId
+          in: path
+          description: UUID дома
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Список устройств дома
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeviceInfo'
+        '404':
+          description: Дом не найден
+        '500':
+          description: Ошибка сервера
+
+  /devices/{deviceId}:
+    get:
+      summary: Получение информации об устройстве
+      parameters:
+        - name: deviceId
+          in: path
+          description: UUID устройства
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Информация об устройстве
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceInfo'
+        '404':
+          description: Устройство не найдено
+        '500':
+          description: Ошибка сервера
+
+  /devices/{deviceId}/state:
+    put:
+      tags:
+        - DeviceControl
+      summary: Обновление состояния устройства
+      parameters:
+        - name: deviceId
+          in: path
+          description: UUID устройства
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [on, off, active, inactive]
+              required: [status]
+            example:
+              status: off
+      responses:
+        '200':
+          description: Состояние устройства обновлено
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: State updated successfully.
+        '400':
+          description: Некорректные данные запроса
+        '404':
+          description: Устройство не найдено
+        '500':
+          description: Ошибка сервера
+
+  # Heating Service
+
+  /heating/{deviceId}/temperature:
+    post:
+      summary: Установка температуры отопления
+      parameters:
+        - name: deviceId
+          in: path
+          description: UUID устройства отопления
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                targetTemperature:
+                  type: number
+                  format: float
+              required: [targetTemperature]
+            example:
+              targetTemperature: 22.5
+      responses:
+        '200':
+          description: Температура успешно установлена
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  currentTemperature:
+                    type: number
+                    format: float
+              example:
+                message: Temperature set successfully.
+                currentTemperature: 22.5
+        '400':
+          description: Некорректные данные запроса
+        '404':
+          description: Устройство не найдено
+        '500':
+          description: Ошибка сервера
+
+  # Lighting Service
+
+  /lighting/{deviceId}/power:
+    post:
+      tags:
+        - Lighting
+      summary: Включение/выключение освещения
+      parameters:
+        - name: deviceId
+          in: path
+          description: UUID устройства освещения
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                powerState:
+                  type: string
+                  enum: [on, off]
+              required: [powerState]
+            example:
+              powerState: off
+      responses:
+        '200':
+          description: Состояние освещения обновлено
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: Lighting power state updated.
+        '400':
+          description: Некорректные данные запроса
+        '404':
+          description: Устройство не найдено
+        '500':
+          description: Ошибка сервера
+
+  /lighting/{deviceId}/settings:
+    get:
+      tags:
+        - Lighting
+      summary: Получение текущих настроек освещения
+      parameters:
+        - name: deviceId
+          in: path
+          description: UUID устройства освещения
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Текущие параметры освещения
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  brightness:
+                    type: integer
+                    minimum: 0
+                    maximum: 100
+                  color:
+                    type: string
+                  status:
+                    type: string
+              example:
+                brightness: 75
+                color: warm_white
+                status: on
+        '404':
+          description: Устройство не найдено
+
+  # Security Service
+
+  /security/{deviceId}/arm:
+    post:
+      summary: Активация или деактивация системы безопасности
+      parameters:
+        - name: deviceId
+          in: path
+          description: UUID устройства безопасности
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                armed:
+                  type: boolean
+              required: [armed]
+            example:
+              armed: true
+      responses:
+        '200':
+          description: Статус системы безопасности обновлён
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: Security system state updated.
+        '400':
+          description: Некорректные данные запроса
+        '404':
+          description: Устройство не найдено
+        '500':
+          description: Ошибка сервера
+
+  /security/{deviceId}/status:
+    get:
+      summary: Получение текущего состояния системы безопасности
+      parameters:
+        - name: deviceId
+          in: path
+          description: UUID устройства безопасности
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Текущее состояние безопасности
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  armed:
+                    type: boolean
+                  alert:
+                    type: boolean
+                  lastTriggered:
+                    type: string
+                    format: date-time
+              example:
+                armed: true
+                alert: false
+                lastTriggered: "2025-08-01T21:33:00Z"
+        '404':
+          description: Устройство не найдено
+
+  # Sensor Service
+
+  /sensors/{sensorId}/telemetry:
+    post:
+      summary: Отправка телеметрии с датчика
+      parameters:
+        - name: sensorId
+          in: path
+          description: UUID датчика
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                timestamp:
+                  type: string
+                  format: date-time
+                value:
+                  type: number
+                  format: float
+                unit:
+                  type: string
+              required: [timestamp, value, unit]
+            example:
+              timestamp: "2025-08-02T14:00:00Z"
+              value: 23.7
+              unit: "°C"
+      responses:
+        '202':
+          description: Данные телеметрии приняты к обработке
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: Telemetry received.
+        '400':
+          description: Некорректные данные
+        '404':
+          description: Датчик не найден
+        '500':
+          description: Ошибка сервера
+
+  # Monitoring Service
+
+  /monitoring/alerts:
+    get:
+      summary: Получение списка последних оповещений
+      parameters:
+        - name: limit
+          in: query
+          description: Количество записей для возврата
+          required: false
+          schema:
+            type: integer
+            default: 10
+        - name: since
+          in: query
+          description: Время с которого возвращать оповещения (ISO 8601)
+          required: false
+          schema:
+            type: string
+            format: date-time
+      responses:
+        '200':
+          description: Список оповещений
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  alerts:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Alert'
+              example:
+                alerts:
+                  - alertId: alert_1
+                    timestamp: "2025-08-02T13:50:00Z"
+                    severity: warning
+                    message: "Неисправность освещения в доме 5"
+                    deviceId: sensor456
+                  - alertId: alert_2
+                    timestamp: "2025-08-02T14:00:00Z"
+                    severity: critical
+                    message: "открыты ворота"
+                    deviceId: security789
+        '500':
+          description: Ошибка сервера
+
+  /monitoring/telemetry:
+    post:
+      summary: Отправка новой телеметрии
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                deviceId:
+                  type: string
+                timestamp:
+                  type: string
+                  format: date-time
+                type:
+                  type: string
+                value:
+                  type: number
+                  format: float
+                unit:
+                  type: string
+              required: [deviceId, timestamp, type, value, unit]
+            example:
+              deviceId: sensor456
+              timestamp: "2025-08-02 00:10:00"
+              type: temperature
+              value: 23.4
+              unit: "°C"
+      responses:
+        '202':
+          description: Данные телеметрии приняты к обработке
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: Telemetry data accepted for processing.
+        '400':
+          description: Некорректные данные запроса
+        '500':
+          description: Ошибка сервера
+
+
+components:
+  schemas:
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        email:
+          type: string
+          format: email
+        created_at:
+          type: string
+          format: date-time
+      required: [id, username, email, created_at]
+
+    House:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        address:
+          type: string
+        name:
+          type: string
+      required: [id, address, name]
+
+    UserHouses:
+      type: object
+      properties:
+        houseId:
+          type: string
+          format: uuid
+        address:
+          type: string
+        name:
+          type: string
+        access_level:
+          type: string
+          enum: [owner, member, guest]
+
+    DeviceInfo:
+      type: object
+      properties:
+        deviceId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [heating, lighting, security, sensor]
+        mac_address:
+          type: string
+        status:
+          type: string
+          enum: [on, off, active, inactive]
+        location:
+          type: string
+        metadata:
+          type: object
+          additionalProperties:
+            type: string
+      required: [deviceId, type, mac_address, status]
+
+    Alert:
+      type: object
+      properties:
+        alertId:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        severity:
+          type: string
+          enum: [info, warning, critical]
+        message:
+          type: string
+        deviceId:
+          type: string
+      required: [alertId, timestamp, severity, message, deviceId]
+
