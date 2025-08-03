@@ -138,4 +138,6 @@ Locations - название комнаты, sensorId - идентификато
 
 [скрипт для запуска docker-compose](./apps/init.sh)
 
+пример запроса: http://localhost:8081/temperature?sensorId=3
+ответ: {"location":"bedroom","sensorId":"3","temperature":15.1}
 
