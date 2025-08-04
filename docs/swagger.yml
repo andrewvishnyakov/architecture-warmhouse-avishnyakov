@@ -182,11 +182,7 @@ paths:
           description: Устройство не найдено
         '500':
           description: Ошибка сервера
-
-  /devices/{deviceId}/state:
     put:
-      tags:
-        - DeviceControl
       summary: Обновление состояния устройства
       parameters:
         - name: deviceId
@@ -220,7 +216,7 @@ paths:
                   message:
                     type: string
               example:
-                message: State updated successfully.
+                message: Состояние устройства обновлено
         '400':
           description: Некорректные данные запроса
         '404':
